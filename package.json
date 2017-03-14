@@ -1,0 +1,28 @@
+{
+  "name": "unifi-adoption-bot",
+  "version": "0.0.1",
+  "description": "Monitor Unifi server's logs to automatically adopt AP",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "bin": "./index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/ZAP-Quebec/unifi-adoption-bot.git"
+  },
+  "keywords": [
+    "unifi"
+  ],
+  "author": "Jean-Sébastien Tremblay <jstremblay@zapquebec.org>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ZAP-Quebec/unifi-adoption-bot/issues"
+  },
+  "homepage": "https://github.com/ZAP-Quebec/unifi-adoption-bot#readme",
+  "dependencies": {
+    "optimist": "^0.6.1",
+    "request": "^2.81.0",
+    "request-promise": "^4.1.1"
+  }
+}
