@@ -4,14 +4,11 @@
 var unifi = require('node-unifi');
 
 class UnifiApi {
-	constructor(host, port, user, pass) {
+	constructor(host, port) {
 		this.host = host;
 		this.port = port;
 
 		this.ctrl = new unifi.Controller(host, port);
-
-		this.user = user;
-		this.pass = pass;
 	}
 	login(user, pass) {
 		return this._wrap("login", user, pass);
@@ -40,6 +37,4 @@ class UnifiApi {
 }
 
 
-module.exports = function(host, port, user, pass) {
-	return new UnifiApi(host, port, user, pass);
-};
+module.exports = (host, port) => new UnifiApi(host, port);
