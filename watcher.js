@@ -19,6 +19,7 @@ class Watcher {
 		this._watch = fs.watch(dir, (ev, filename) => this.onEvent(ev, filename));
 		this._pending = null;
 		this._fd = null;
+		this._fLength = 0;
 		this._buf = "";
 
 		this.open();
@@ -33,10 +34,12 @@ class Watcher {
 			this.readUntilEnd();
 			this.reopen();
 		}
+		this.checkTruncated();
 		this.readUntilEnd();
 	}
 	open() {
 		this.run(() => {
+			this._fLength = 0;
 			var defered = Promise.defer();
 			fs.open(this.fullpath, 'r', (err, fd) => {
 				this._fd = err ? null : fd;
@@ -75,6 +78,24 @@ class Watcher {
 			return defered.promise;
 		});
 	}
+	checkTruncated() {
+		this.run(() => {
+			if(!this._fd) {
+				return Promise.accept();
+			}
+
+			var defered = Promise.defer();
+			fs.fstat(this._fd, (err, stats) => {
+				if(err) {
+					console.error("fstat err:", err);
+				} else if(stats.size <= this._fLength) {
+					this._fLength = 0;
+				}
+				return defered.resolve();
+			})
+			return defered.promise;
+		});
+	}
 	readUntilEnd() {
 		this.run(() => {
 			if(!this._fd) {
@@ -85,18 +106,22 @@ class Watcher {
 			var buf = new Buffer(1024);
 			this._read(null, -1, buf, defered, false);
 			return defered.promise;
-		})
+		});
 	}
 	_read(err, bytesRead, buffer, defered, ignoreData) {
 		if(err || bytesRead === 0) {
 			return defered.resolve();
 		}
 
+		if(bytesRead > 0) {
+			this._fLength += bytesRead;
+		}
+
 		if(!ignoreData && bytesRead !== -1) {
 			this.handleData(buffer.slice(0, bytesRead));
 		}
 
-		fs.read(this._fd, buffer, 0, buffer.length, null, (err, bytesRead, buffer) => this._read(err, bytesRead, buffer, defered, ignoreData));
+		fs.read(this._fd, buffer, 0, buffer.length, this._fLength, (err, bytesRead, buffer) => this._read(err, bytesRead, buffer, defered, ignoreData));
 	}
 	handleData(buffer) {
 		var str = this.decoder.write(buffer);
@@ -114,7 +139,6 @@ class Watcher {
 		for(var i=0; i<lines.length; i++) {
 			this.cb(lines[i]);
 		}
-
 	}
 	run(cb) {
 		this._pending = (this._pending || Promise.accept()).then(cb);
