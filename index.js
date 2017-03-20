@@ -36,7 +36,7 @@ const argv = (function(optimist) {
     return argv;
 })(require('optimist'));
 
-const unifi = require('./unifi')(argv.host, argv.port);
+const unifi = require('./unifi')(argv.host, argv.port, argv.user, argv.pass);
 
 
 unifi.login(argv.user, argv.pass).then(function() {

@@ -4,9 +4,11 @@
 var unifi = require('node-unifi');
 
 class UnifiApi {
-	constructor(host, port) {
+	constructor(host, port, user, pass) {
 		this.host = host;
 		this.port = port;
+		this.user = user;
+		this pass = pass;
 
 		this.ctrl = new unifi.Controller(host, port);
 	}
@@ -24,11 +26,27 @@ class UnifiApi {
 		}
 
 		var defered = Promise.defer();
-		args[args.length-1] = function(err) {
+		function handleResult(err) {
 			if(err) {
 				defered.reject(err);
 			} else {
 				defered.resolve();
+			}
+		}
+		args[args.length-1] = (err) => {
+			if(err && err == 'api.err.LoginRequired') {
+				// try once to login again
+				console.log("Got first `%s`, try login.", err);
+				args[args.length-1] = handleResult;
+				this.ctrl.login(this.user, this.pass, (err) => {
+					if(err) {
+						handleResult(err);
+					} else {
+						func.apply(this.ctrl, args);
+					}
+				});
+			} else {
+				handleResult(err);
 			}
 		};
 		func.apply(this.ctrl, args);
