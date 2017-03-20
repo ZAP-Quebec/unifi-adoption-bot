@@ -51,11 +51,20 @@ const adoptingReg = /\[([^\]]+)\] <([^>]+)>.+AP\[([a-fA-F0-9:]+)\] was discovere
 
 const conf = require('./adopt-conf.js')(argv.adoptionfolder);
 
+const adoptedAps = {};
+
 const watcher = require('./watcher')(argv.logfile, function(line) {
 	var res = adoptingReg.exec(line);
 
 	if(res) {
-		var mac = res[3];
+		var mac = res[3].toLowerCase();
+
+		// ensure we only adopt once
+		var date = parseDate(res[1]);
+		if (adoptedAps[mac] && date < adoptedAps[mac]) {
+			return;
+		}
+
 		conf.findAp(mac).then((aps) => {
 			if(aps.length === 0) {
 				console.log("AP[%s] waiting for adoption not found in config file", mac);
@@ -67,9 +76,18 @@ const watcher = require('./watcher')(argv.logfile, function(line) {
 				return unifi.adopt(mac, ap.site);
 			}
 		}).then(() => {
+			adoptedAps[mac] = date;
 			console.log("Successfuly adopted AP[%s]", mac);
 		}, (err) => {
 			console.log("Error adopting AP[%s]:", mac, err);
 		});
 	}
 });
+
+function parseDate(str) {
+	str = str.replace(' ', 'T').replace(',', '.');
+
+	var offset = new Date(str).getTimezoneOffset() / 60;
+
+	return new Date(str+'-0'+offset+':00').getTime();
+}

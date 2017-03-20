@@ -1,6 +1,6 @@
 {
   "name": "unifi-adoption-bot",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Monitor Unifi server's logs to automatically adopt AP",
   "main": "index.js",
   "scripts": {
