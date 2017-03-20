@@ -38,6 +38,7 @@ class UnifiApi {
 				// try once to login again
 				console.log("Got first `%s`, try login.", err);
 				args[args.length-1] = handleResult;
+				this.ctrl = new unifi.Controller(this.host, this.port);
 				this.ctrl.login(this.user, this.pass, (err) => {
 					if(err) {
 						handleResult(err);
