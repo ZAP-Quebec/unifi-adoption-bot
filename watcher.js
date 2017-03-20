@@ -4,6 +4,8 @@ const fs = require('fs');
 const path = require('path');
 
 const StringDecoder = require('string_decoder').StringDecoder;
+const Tail = require('tail').Tail;
+
 
 const skipLength = 1024 * 1024;
 
@@ -16,14 +18,25 @@ class Watcher {
 		this.cb = cb;
 		this.decoder = new StringDecoder('utf8');
 
-		this._watch = fs.watch(dir, (ev, filename) => this.onEvent(ev, filename));
-		this._pending = null;
-		this._fd = null;
-		this._fLength = 0;
-		this._buf = "";
 
-		this.open();
-		this.skipContent();
+		var tail = new Tail(this.fullpath, {
+			follow: true,
+		});
+ 
+		tail.on("line", cb);
+		 
+		tail.on("error", function(error) {
+		  console.log('Tail ERROR: ', error);
+		});
+
+		// this._watch = fs.watch(dir, (ev, filename) => this.onEvent(ev, filename));
+		// this._pending = null;
+		// this._fd = null;
+		// this._fLength = 0;
+		// this._buf = "";
+
+		// this.open(false);
+		// this.skipContent();
 	}
 	onEvent(ev, filename) {
 		if(filename != this.file) {
@@ -37,8 +50,14 @@ class Watcher {
 		this.checkTruncated();
 		this.readUntilEnd();
 	}
-	open() {
+	open(fromBeginning) {
 		this.run(() => {
+			var defered = Promise.defer();
+			fs.access(this.fullpath, fs.constants.F_OK | fs.constants.R_OK, (err) => {
+				//
+			});
+			return defered.promise;
+
 			this._fLength = 0;
 			var defered = Promise.defer();
 			fs.open(this.fullpath, 'r', (err, fd) => {
