@@ -59,10 +59,13 @@ const watcher = require('./watcher')(argv.logfile, function(line) {
 	if(res) {
 		var mac = res[3].toLowerCase();
 
-		// ensure we only adopt once
+		// ensure we only adopt once for a same log line
 		var date = parseDate(res[1]);
-		if (adoptedAps[mac] && date < adoptedAps[mac]) {
+		if (adoptedAps[mac] && date <= adoptedAps[mac]) {
+			console.log("AP[%s] already adopted on %s", mac, new Date(date));
 			return;
+		} else {
+			adoptedAps[mac] = date;
 		}
 
 		conf.findAp(mac).then((aps) => {
@@ -76,7 +79,6 @@ const watcher = require('./watcher')(argv.logfile, function(line) {
 				return unifi.adopt(mac, ap.site);
 			}
 		}).then(() => {
-			adoptedAps[mac] = date;
 			console.log("Successfuly adopted AP[%s]", mac);
 		}, (err) => {
 			console.log("Error adopting AP[%s]:", mac, err);
