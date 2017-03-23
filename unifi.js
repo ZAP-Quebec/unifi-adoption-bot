@@ -8,7 +8,7 @@ class UnifiApi {
 		this.host = host;
 		this.port = port;
 		this.user = user;
-		this pass = pass;
+		this.pass = pass;
 
 		this.ctrl = new unifi.Controller(host, port);
 	}
