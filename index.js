@@ -1,27 +1,61 @@
 #!/usr/bin/env node
 
-const argv = (function(optimist) {
-	var cmd = optimist.usage('Usage: $0 --host hostname --adoptionfolder /etc/unifi-adoption-bot');
-
-	var required = ['host', 'adoptionfolder'];
+const argv = (function(yargs) {
+	var cmd = yargs.usage('Usage: $0 --host hostname --adoptionfolder /etc/unifi-adoption-bot')
+		.options({
+			'logfile': {
+				alias: 'f',
+				demandOption: true,
+				normalize: true,
+				default: '/var/log/unifi/server.log',
+				describe: 'Path to unifi server\'s log file',
+				type: 'string'
+			},
+			'user': {
+				alias: 'u',
+				describe: 'Unifi\'s username (default to env.UNIFI_USER)',
+				type: 'string'
+			},
+			'pass': {
+				describe: 'Unifi\'s password (default to env.UNIFI_PASS)',
+				type: 'string'
+			},
+			'host': {
+				alias: 'h',
+				demandOption: true,
+				describe: 'Unifi\'s hostname',
+				type: 'string'
+			},
+			'port': {
+				alias: 'p',
+				demandOption: true,
+				default: 8443,
+				describe: 'Unifi\'s port',
+				type: 'number'
+			},
+			'adoptionfolder': {
+				alias: 'd',
+				normalize: true,
+				demandOption: true,
+				describe: 'Folder containing lists of AP',
+				type: 'string'
+			},
+			'verbosity': {
+				alias: 'v',
+				default: 'info',
+				describe: 'Log level',
+				type: 'string',
+				choices: ['error', 'warn', 'info', 'verbose', 'debug'],
+			},
+    	});
 
 	if(!process.env['UNIFI_USER']) {
-		required.push('user');
+		cmd.require('user');
 	}
 
 	if(!process.env['UNIFI_PASS']) {
-		required.push('pass');
+		cmd.require('pass');
 	}
-
-	cmd.describe('logfile', 'Path to unifi server\'s log file')
-	   .default('logfile', '/var/log/unifi/server.log')
-	   .describe('user', 'Unifi\'s username (default to env.UNIFI_USER)')
-	   .describe('pass', 'Unifi\'s password (default to env.UNIFI_PASS)')
-	   .describe('host', 'Unifi\'s hostname')
-	   .describe('port', 'Unifi\'s port')
-	   .default('port', 8443)
-	   .describe('adoptionfolder', 'Folder containing lists of AP')
-	   .demand(required);
 
 	var argv = cmd.argv;
 
@@ -31,18 +65,27 @@ const argv = (function(optimist) {
 
 	if(!argv.pass && process.env['UNIFI_PASS']) {
 		argv.pass = process.env['UNIFI_PASS'];
+	} else {
+		logger.warn("Use caution when passing password with the command line's arguments");
 	}
 
     return argv;
-})(require('optimist'));
+})(require('yargs'));
 
-const unifi = require('./unifi')(argv.host, argv.port, argv.user, argv.pass);
+const winston = require('winston');
+const logger = new (winston.Logger)({
+    transports: [
+      new (winston.transports.Console)({ level: argv.verbosity }),
+    ]
+});
+
+const unifi = require('./unifi')(logger, argv.host, argv.port, argv.user, argv.pass);
 
 
 unifi.login(argv.user, argv.pass).then(function() {
-	console.log("Connected to unifi controler");
+	logger.info("Successfully connected to unifi controler");
 }, function(err) {
-	console.error("Couldn't connect to unifi's controler.", err);
+	logger.error("Couldn't connect to unifi's controler.", err);
 	process.exit(1);
 });
 
@@ -52,8 +95,9 @@ const adoptingReg = /\[([^\]]+)\] <([^>]+)>.+AP\[([a-fA-F0-9:]+)\] was discovere
 const conf = require('./adopt-conf.js')(argv.adoptionfolder);
 
 const adoptedAps = {};
+const STATUS_ADOPTED = {adopted: true};
 
-const watcher = require('./watcher')(argv.logfile, function(line) {
+const watcher = require('./watcher')(argv.logfile, logger, function(line) {
 	var res = adoptingReg.exec(line);
 
 	if(res) {
@@ -62,26 +106,30 @@ const watcher = require('./watcher')(argv.logfile, function(line) {
 		// ensure we only adopt once for a same log line
 		var date = parseDate(res[1]);
 		if (adoptedAps[mac] && date <= adoptedAps[mac]) {
-			console.log("AP[%s] already adopted on %s", mac, new Date(date));
+			logger.warn("Possibly reading an old log line. AP[%s] already adopted on %s", mac, new Date(date));
 			return;
-		} else {
-			adoptedAps[mac] = date;
 		}
+
+		adoptedAps[mac] = date;
+		logger.verbose("Searching config files for AP[%s]", mac);
 
 		conf.findAp(mac).then((aps) => {
 			if(aps.length === 0) {
-				console.log("AP[%s] waiting for adoption not found in config file", mac);
+				logger.info("AP[%s] waiting for adoption not found in config file", mac);
 			} else if(aps.length > 1) {
-				console.log("Found AP[%s] in multiple config files (%s)", mac, aps.map((ap) => ap.site).join(', '));
+				logger.warn("Found AP[%s] in multiple config files (%s)", mac, aps.map((ap) => ap.site).join(', '));
 			} else {
 				var ap = aps[0];
-				console.log("Adopting AP[%s] to %s", mac, ap.site);
-				return unifi.adopt(mac, ap.site);
+				logger.info("Adopting AP[%s] to %s", mac, ap.site);
+				return unifi.adopt(mac, ap.site).then(() => STATUS_ADOPTED);
 			}
-		}).then(() => {
-			console.log("Successfuly adopted AP[%s]", mac);
+			return {adopted: false};
+		}).then((result) => {
+			if(result.adopted) {
+				logger.info("Successfuly adopted AP[%s]", mac);
+			}
 		}, (err) => {
-			console.log("Error adopting AP[%s]:", mac, err);
+			logger.error("Error adopting AP[%s]:", mac, err);
 		});
 	}
 });

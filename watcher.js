@@ -10,12 +10,13 @@ const Tail = require('tail').Tail;
 const skipLength = 1024 * 1024;
 
 class Watcher {
-	constructor(file, cb) {
+	constructor(file, logger, cb) {
 		this.fullpath = path.isAbsolute(file) ? file : path.join(process.cwd(), file);
 		const dir = path.dirname(this.fullpath);
 
 		this.file = path.basename(this.fullpath);
 		this.cb = cb;
+		this.logger = logger;
 		this.decoder = new StringDecoder('utf8');
 
 
@@ -26,7 +27,7 @@ class Watcher {
 		tail.on("line", cb);
 		 
 		tail.on("error", function(error) {
-		  console.log('Tail ERROR: ', error);
+		  logger.error('Tail ERROR: %s', error);
 		});
 
 		// this._watch = fs.watch(dir, (ev, filename) => this.onEvent(ev, filename));
@@ -165,6 +166,6 @@ class Watcher {
 
 }
 
-module.exports = function(file, cb) {
-	return new Watcher(file, cb);
+module.exports = function(file, logger, cb) {
+	return new Watcher(file, logger, cb);
 }

@@ -30,4 +30,15 @@ F0:9F:C2:00:00:00 Hall - AP2
 
 Start the service with :
 
-`unifi-adoption-bot --user <unifi's user> --pass <unifi's password> --host <http(s)://hostname:port> --logfile </path/to/server.log> --adoptionfolder </path/to/folder>`
+```
+Usage: unifi-adoption-bot --host hostname --adoptionfolder /etc/unifi-adoption-bot
+
+Options:
+  --logfile, -f         Path to unifi server's log file (default to "/var/log/unifi/server.log")
+  --user, -u            Unifi's username *required* (default to env.UNIFI_USER)
+  --pass                Unifi's password *required* (default to env.UNIFI_PASS)
+  --host, -h            Unifi's hostname *required*
+  --port, -p            Unifi's port     *required* (default to 8443)
+  --adoptionfolder, -d  Folder containing lists of AP *required*
+  --verbosity, -v       Log level (choices: "error", "warn", "info", "verbose", "debug") (default to "info")
+```

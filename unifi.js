@@ -1,15 +1,20 @@
 
 "use strict";
 
-var unifi = require('node-unifi');
+const unifi = require('node-unifi');
 
 class UnifiApi {
-	constructor(host, port, user, pass) {
+	constructor(logger, host, port, user, pass) {
 		this.host = host;
 		this.port = port;
 		this.user = user;
 		this.pass = pass;
+		this.logger = logger;
 
+		this.init(host, port);
+	}
+	init(host, port) {
+		logger.debug('Create API object with url https://%s:%d', host, port);
 		this.ctrl = new unifi.Controller(host, port);
 	}
 	login(user, pass) {
@@ -19,6 +24,7 @@ class UnifiApi {
 		return this._wrap("adoptDevice", site, mac);
 	}
 	_wrap(fn) {
+		this.logger.verbose("Calling api: %s", fn);
 		var func = this.ctrl[fn];
 		var args = new Array(arguments.length);
 		for(var i=0; i<args.length - 1; i++) {
@@ -26,23 +32,26 @@ class UnifiApi {
 		}
 
 		var defered = Promise.defer();
-		function handleResult(err) {
+		var handleResult = (err) => {
 			if(err) {
+				this.logger.verbose("Error calling %s : %s", fn, err);
 				defered.reject(err);
 			} else {
+				this.logger.verbose("Successfully called %s", fn);
 				defered.resolve();
 			}
-		}
+		};
 		args[args.length-1] = (err) => {
 			if(err && err == 'api.err.LoginRequired') {
-				// try once to login again
-				console.log("Got first `%s`, try login.", err);
 				args[args.length-1] = handleResult;
-				this.ctrl = new unifi.Controller(this.host, this.port);
+				this.init(this.host, this.port);
+				this.logger.verbose("Got %s. Try to login to controller.", err);
 				this.ctrl.login(this.user, this.pass, (err) => {
 					if(err) {
+						this.logger.error("Could not login");
 						handleResult(err);
 					} else {
+						this.logger.verbose("Login successful, calling %s again.", fn);
 						func.apply(this.ctrl, args);
 					}
 				});
@@ -56,4 +65,4 @@ class UnifiApi {
 }
 
 
-module.exports = (host, port) => new UnifiApi(host, port);
+module.exports = (logger, host, port, user, pass) => new UnifiApi(logger, host, port, user, pass);
