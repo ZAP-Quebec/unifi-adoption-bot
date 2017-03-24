@@ -14,7 +14,7 @@ class UnifiApi {
 		this.init(host, port);
 	}
 	init(host, port) {
-		logger.debug('Create API object with url https://%s:%d', host, port);
+		this.logger.debug('Create API object with url https://%s:%d', host, port);
 		this.ctrl = new unifi.Controller(host, port);
 	}
 	login(user, pass) {
