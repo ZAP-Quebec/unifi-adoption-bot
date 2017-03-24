@@ -66,7 +66,7 @@ const argv = (function(yargs) {
 	if(!argv.pass && process.env['UNIFI_PASS']) {
 		argv.pass = process.env['UNIFI_PASS'];
 	} else {
-		logger.warn("Use caution when passing password with the command line's arguments");
+		console.warn("Use caution when passing password with the command line's arguments");
 	}
 
     return argv;
