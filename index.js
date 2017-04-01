@@ -66,7 +66,7 @@ const argv = (function(yargs) {
 	if(!argv.pass && process.env['UNIFI_PASS']) {
 		argv.pass = process.env['UNIFI_PASS'];
 	} else {
-		logger.warn("Use caution when passing password with the command line's arguments");
+		argv.isPassFromCli = true;
 	}
 
     return argv;
@@ -78,6 +78,10 @@ const logger = new (winston.Logger)({
       new (winston.transports.Console)({ level: argv.verbosity }),
     ]
 });
+
+if(argv.isPassFromCli){
+	logger.warn("Use caution when passing password with the command line's arguments");
+}
 
 const unifi = require('./unifi')(logger, argv.host, argv.port, argv.user, argv.pass);
 
